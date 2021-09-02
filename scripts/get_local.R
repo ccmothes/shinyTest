@@ -23,17 +23,17 @@ watersheds <- read_sf("data/watersheds.shp")
 
 
 
-#set bounding box around watersheds to pull images from
-region <- ee$Geometry$BBox( -105.89218, 40.27989, -105.17284, 40.72316)
-
-#set mapping parameters
-viz <- list(bands = c('B4', 'B3', 'B2'), min = 300, max = 1600)
-
-
+# #set bounding box around watersheds to pull images from
+# region <- ee$Geometry$BBox( -105.89218, 40.27989, -105.17284, 40.72316)
+# 
+# #set mapping parameters
+# viz <- list(bands = c('B4', 'B3', 'B2'), min = 300, max = 1600)
+# 
+# 
 
 #convert watersheds and points to ee_object
 
-watershed_ee <- sf_as_ee(watersheds)
-
-locations_ee <- sf_as_ee(locations)
+# watershed_ee <- sf_as_ee(watersheds)
+# 
+# locations_ee <- sf_as_ee(locations)
 

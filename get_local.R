@@ -51,7 +51,7 @@ viz <-
 
 #convert watersheds and points to ee_object
 
-watershed_ee <- sf_as_ee(watersheds)
-
-locations_ee <- sf_as_ee(locations)
+# watershed_ee <- sf_as_ee(watersheds)
+# 
+# locations_ee <- sf_as_ee(locations)
 
