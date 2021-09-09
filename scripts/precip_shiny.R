@@ -2,6 +2,7 @@
 
 library(shiny)
 library(rnoaa)
+library(leaflet)
 
 
 
@@ -62,11 +63,17 @@ server <- function(input, output, session) {
   
   
   output$plot <- leaflet::renderLeaflet({
-    leaflet() %>% 
-      addTiles() %>% 
-      addCircleMarkers(data = data(), radius = ~ sqrt(variable), color = "red",
-                       stroke = TRUE, fillOpacity = 1)
-    
+    leaflet() %>%
+      addTiles() %>%
+      addCircleMarkers(
+        data = data(),
+        lng = ~longitude,
+        lat = ~latitude,
+        radius = ~ sqrt(variable),
+        color = "red",
+        stroke = TRUE,
+        fillOpacity = 1
+      )
     
     
   })

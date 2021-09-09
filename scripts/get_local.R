@@ -13,7 +13,7 @@ daily_data <-
     pattern = "daily",
     full.names = TRUE
   ),
-  read_csv) %>% set_names(c("Andrews", "Bighorn", "Dry", "Michigan", "Mill")) %>% 
+  read_csv) %>% set_names(c("Andrews Creek", "Bighorn Creek", "Dry Creek", "Michigan River", "Mill Creek")) %>% 
   bind_rows(.id = "Site")
 
 # read in locations and watersheds

@@ -92,6 +92,7 @@ weather_data <- meteo_pull_monitors(location_stations$id, date_min = "2020-08-01
 #this takes a while...save as RDATA
 saveRDS(weather_data, "data/weather_data.RDS")
 #not data for all stations/dates...
+weather_data <- readRDS("data/weather_data.RDS")
 
 #tie to coordinates
 weather_coords <- weather_data %>% left_join(location_stations, by = "id") %>% 
@@ -105,7 +106,7 @@ weather_date <- weather_coords %>% filter(date == "2021-07-21")
 
 leaflet() %>% 
   addTiles() %>% 
-  addCircleMarkers(data = weather_date, radius = ~ sqrt(prcp), color = "red",
+  addCircleMarkers(data = weather_date, radius = ~ sqrt(Precipitation), color = "red",
                    stroke = TRUE, fillOpacity = 1)
 
 
