@@ -14,7 +14,9 @@ daily_data <-
     full.names = TRUE
   ),
   read_csv) %>% set_names(c("Andrews Creek", "Bighorn Creek", "Dry Creek", "Michigan River", "Mill Creek")) %>% 
-  bind_rows(.id = "Site")
+  bind_rows(.id = "Site") %>% 
+  #arrange(as.Date(Date, format = "%m/%d/%Y")) %>% 
+  mutate(Date = as.POSIXct(Date, format = "%m/%d/%Y"))
 
 # read in locations and watersheds
 
@@ -22,6 +24,10 @@ locations <- read_sf("data/locations.shp")
 watersheds <- read_sf("data/watersheds.shp")
 
 
+#tie daily data to watersheds
+daily_data <- left_join(watersheds, daily_data, by = "Site") %>% 
+  st_transform(4326)
+  
 
 # #set bounding box around watersheds to pull images from
 # region <- ee$Geometry$BBox( -105.89218, 40.27989, -105.17284, 40.72316)

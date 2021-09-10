@@ -96,7 +96,7 @@ weather_data <- readRDS("data/weather_data.RDS")
 
 #tie to coordinates
 weather_coords <- weather_data %>% left_join(location_stations, by = "id") %>% 
-  select(id, date, Precipitation = prcp, Snowfall = snow, Snow_depth = snwd,
+  dplyr::select(id, date, Precipitation = prcp, Snowfall = snow, Snow_depth = snwd,
          Minimum_temp = tmin, Maximum_temp = tmax, Average_temp = tavg, latitude,
          longitude)
 

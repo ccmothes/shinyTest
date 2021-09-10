@@ -1,15 +1,23 @@
 #time loop test
 
+library(shiny)
 library(bslib)
-library(data.table)
-readRDS("data/camPeakSimple.RDS")
+camPeak_simple <- readRDS("data/camPeakSimple.RDS")
 
-
+#from shinyTime:
+dateToTimeList <- function(value){
+  if(is.null(value)) return(NULL)
+  posixlt_value <- unclass(as.POSIXlt(value))
+  time_list <- lapply(posixlt_value[c('hour', 'min', 'sec')], function(x) {
+    sprintf("%02d", trunc(x))
+  })
+  return(time_list)
+}
 
 
 
 ui <- navbarPage(
-  theme = bs_theme(bootswatch = "flatly"),
+  theme = bslib::bs_theme(bootswatch = "flatly"),
   
   "Portal Demon",
   id = "nav",
@@ -74,7 +82,7 @@ ui <- navbarPage(
           "Maximum_temp"
         )
       ),
-      plotlyOutput("plot")
+      plotlyOutput("plot1")
     )
   ),
   tabPanel(
@@ -113,7 +121,8 @@ server <-  function(input, output, session){
       #   )
       # ) %>%
       addPolygons(
-        data = st_transform(watersheds, 4326),
+        data = daily_data,
+        layerId = ~Site,
         color = "red",
         opacity = 1,
         popup = ~ Site,
@@ -143,15 +152,19 @@ server <-  function(input, output, session){
         fillColor = ~ colorFactor("Reds", Severity)(Severity),
         group = "Cameron Peak Fire"
       ) %>%
-      addScaleBar(position = "bottomright") %>% 
-
-      addLayersControl(overlayGroups = c("Watersheds", "Weather Stations",
-                                         "Radar", "Cameron Peak Fire"),
-                       options =layersControlOptions(collapsed = FALSE)
-                       ) %>%
-      hideGroup(c("Weather Stations", "Radar", "Cameron Peak Fire"))
+      addScaleBar(position = "bottomright") %>%
+      
+      addLayersControl(
+        overlayGroups = c("Watersheds",  "Cameron Peak Fire", "Weather Stations",
+                          "Radar"),
+        position = "topleft",
+        options = layersControlOptions(collapsed = FALSE)
+      ) %>%
+      hideGroup(c("Weather Stations", "Radar", "Cameron Peak Fire")) %>% 
+      removeTiles("B")
     
-
+    
+    
   })
   
   observe({
@@ -168,11 +181,11 @@ server <-  function(input, output, session){
       stroke = TRUE,
       fillOpacity = 1,
       popup = paste("Station:", data()$id, "<br>",
-                    input$variable, data()$variable
+                    input$variable, weather()$variable
                     ),
       group = "Weather Stations"
 
-    )
+    ) 
   })
   
   observe({
@@ -190,18 +203,40 @@ server <-  function(input, output, session){
                           format = "%Y-%m-%d %H:%M", tz = "UTC"),
         group = "Radar"
       )
-    )
+    ) 
     
     
   })
   
-  rv <- reactiveValues()
+  clicked_map <- reactiveValues(clickedShape=NULL)
+  observeEvent(input$map_shape_click,{
+    clicked_map$clickedShape <- input$map_shape_click
+  })
   
-  output$plot <- renderPlotly(
-    plot_ly(watershed(), type = 'scatter', mode = 'lines')%>%
-      add_trace(x = ~Date, y = ~input$choice)%>%
-      layout(showlegend = F)
-  )
+  selected_watershed <- reactive({
+    clicked_map$clickedShape
+  })
+  
+
+  selected_data <- reactive({
+    if(is.null(clicked_map$clickedShape))
+      return(NULL)
+    
+    filter(daily_data, Site == selected_watershed())
+  })
+  
+  output$plot1 <- renderPlotly({
+    temp <- selected_data()
+    if(is.null(temp))
+      return(NULL)
+    
+    plot_ly() %>%
+      add_lines(x = temp$Date, y = temp$P_mm, name = "Precipitation") 
+  })
+  
+  
+
+ 
 }
 
 
