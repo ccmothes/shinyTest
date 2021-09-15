@@ -11,7 +11,7 @@ watershed_data <- left_join(daily_data, watersheds, by = "Site")
 
 
 dry <-
-  watershed_data %>% filter(Site == "Dry Creek") %>% #group_by(Date) %>%
+  daily_data %>% filter(Site == "Dry Creek") %>% #group_by(Date) %>%
   #summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
   mutate(Date = as.POSIXct(Date, format = "%m/%d/%Y"))
 
@@ -20,7 +20,7 @@ dry_test <- dry %>% dplyr::select(Date, P_mm) %>% filter(!is.na(Date)) %>%
 
 #make plotly of variable over time
 
-fig <- plot_ly(dry_test, type = 'scatter', mode = 'lines')%>%
+fig <- plot_ly(dry, type = 'scatter', mode = 'lines')%>%
   add_trace(x = ~Date, y = ~P_mm, name = 'Precipitation')%>%
   layout(showlegend = F)
 
@@ -35,4 +35,16 @@ fig <- fig %>%
     plot_bgcolor='#e5ecf6', width = 900)
 
 
+# add weather data to ploty
+weather_test <- weather_coords %>% filter(id == "USC00057296") %>% 
+  mutate(date = as.POSIXct(date, format = "%m/%d/%Y"))
+
+plot_ly() %>%
+  add_lines(x = dry$Date, y = dry$P_mm, name = "Stream Data") %>% 
+  add_lines(x = weather_test$date, y = weather_test$Precipitation, name = "Weather Data",
+              yaxis = "y2", color=I("red"), opacity = 0.5) %>% 
+  layout(title = "Data Test",
+         yaxis2 = list(side = "right", title = "Weather Station Precipitation",
+                       overlaying = "y"),
+         yaxis = list(title = "Stream Gage Precipitation"))
 

@@ -19,7 +19,7 @@ dateToTimeList <- function(value){
 ui <- navbarPage(
   theme = bslib::bs_theme(bootswatch = "flatly"),
   
-  "Portal Demon",
+  "Portal Demo",
   id = "nav",
   
   tabPanel(
@@ -33,63 +33,118 @@ ui <- navbarPage(
     #       opacity: 1;
     #     }
     #            "),
-    leaflet::leafletOutput("map", width = '100%' , height = 800),
     
-    absolutePanel(
-      id = "controls",
-      class = "panel panel-default",
-      fixed = TRUE,
-      draggable = TRUE,
-      top = 80,
-      left = "auto",
-      right = 20,
-      bottom = "auto",
-      width = 360,
-      height = "auto",
-      h4("Data Explorer"),
-      style = "opacity: 0.9; background-color: white; padding: 0 20px 20px 20px",
-      sliderInput(
-        "date",
-        "Observation Date",
-        value = as.Date("2021-08-01"),
-        min = as.Date("2020-08-01"),
-        max = as.Date("2021-08-31"),
-        timezone = "-0600",
-        width = '100%'
+    sidebarLayout(
+      position = "right",
+      
+      mainPanel(
+        leaflet::leafletOutput(
+        "map", width = '100%' , height = 800
+      ),
+      
+      plotlyOutput("plot1", width = "100%")
+      
+      ),
+      
+      sidebarPanel(
+        h4("Weather Explorer"),
+        sliderInput(
+          "date",
+          label = "Observation Date:", 
+          value = as.Date("2021-08-30"),
+          min = as.Date("2015-10-01"),
+          max = Sys.Date(),
+          timezone = "-0600",
+          width = '100%'
+          
+        ),
+        sliderInput(
+          "time",
+          "Radar Time:",
+          value = strptime("12:00", "%H:%M"),
+          min = strptime("00:00", "%H:%M"),
+          max = strptime("23:50", "%H:%M"),
+          timeFormat = "%H:%M",
+          timezone = "-0600",
+          width = '100%',
+          step = 900,
+          animate = animationOptions(interval = 3000)
+        ),
+        selectInput(
+          "variable",
+          "Weather Variable:",
+          choices = c(
+            "Precipitation",
+            "Snowfall",
+            "Snow Depth" = "Snow_depth",
+            "Minimum Temperature" = "Minimum_temp", "Maximum Temperature" = "Maximum_temp",
+            "Average Temperature" = "Average_temp"
+          )
+        ),
+        em("Circle size represents variable value"),
+        h4("----------------------------"),
+        h4("Data Explorer"),
+        br(),
+        em("Click on a watershed and choose the date range and variable you want to view"),
+        br(),
+        br(),
+        sliderInput(
+          "range",
+          "Date Range:",
+          value = c(as.Date("2015-10-01"), as.Date("2019-09-30")),
+          min = as.Date("2015-10-01"),
+          max = as.Date("2019-09-30"),
+          timezone = "-0600",
+          width = '100%'
+          
+        ),
+        selectInput("streamVar", "Sensor Variable:", choices = c(
+          "Precipitation" = "P_mm",
+          "Air Temperature" = "Ta_C",
+          "Soil Temperature" = "Ts_C",
+          "Snow Depth" = "Snow_depth_cm",
+          "Average Daily Discharge" = "Discharge_Ls",
+          "Total Daily Discharge" = "Q_mm")),
+        br(),
+        em("Click on a weather station and choose which variable to plot against the watershed data"),
+        br(),
+        br(),
+        selectInput("weatherVar", "Weather Station Variable:", choices = c(
+          "Precipitation", "Snowfall", "Snow Depth" = "Snow_depth",
+          "Minimum Temperature" = "Minimum_temp", "Maximum Temperature" = "Maximum_temp",
+          "Average Temperature" = "Average_temp")),
+        br(),
+        strong("Note: some data may be missing for certain dates/variables")
         
-      ),
-      sliderInput(
-        "time",
-        "Time",
-        value = strptime("12:00", "%H:%M"),
-        min = strptime("00:00", "%H:%M"),
-        max = strptime("23:50", "%H:%M"),
-        timeFormat = "%H:%M",
-        timezone = "-0600",
-        width = '100%',
-        step = 900,
-        animate = animationOptions(interval = 3000)
-      ),
-      selectInput(
-        "variable",
-        "Variable",
-        choices = c(
-          "Precipitation",
-          "Snowfall",
-          "Snow_depth",
-          "Average_temp",
-          "Minimum_temp",
-          "Maximum_temp"
-        )
-      ),
-      plotlyOutput("plot1")
+          
+          
+        
+        #plotlyOutput("plot1")
+      )
     )
   ),
+  
+  
+  # absolutePanel(
+  #   id = "controls",
+  #   class = "panel panel-default",
+  #   fixed = TRUE,
+  #   draggable = TRUE,
+  #   top = 80,
+  #   left = "auto",
+  #   right = 20,
+  #   bottom = "auto",
+  #   width = 500,
+  #   height = "auto",
+  #   style = "opacity: 0.9; background-color: white; padding: 0 20px 20px 20px",
+
   tabPanel(
     "Sentinel Explorer",
-    h2("This is where the Sentinel interactive map would go")
+    h2("Sentinel interactive map here hopefully....")
   )
 )
+
+
 server <-  function(input, output, session){
   
   
@@ -108,7 +163,8 @@ server <-  function(input, output, session){
   
   output$map <- leaflet::renderLeaflet({
     leaflet() %>%
-      addTiles(layerId = "A") %>%
+      addTiles(layerId = "A", group = "Open Street Map") %>%
+      addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>% 
       # addWMSTiles(
       #   "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi?",
       #   layers = "nexrad-n0q-wmst",
@@ -117,16 +173,21 @@ server <-  function(input, output, session){
       #     transparent = TRUE,
       #     time = as.POSIXct(paste(input$date, time()),
       #                       format = "%Y-%m-%d %H:%M", tz = "UTC"),
-      #     group = "Radar"
+      #     group = "Radar",
+      #     layerId = "B"
       #   )
       # ) %>%
+    addMapPane("fire", zIndex = 410) %>% 
+      addMapPane("watersheds", zIndex = 420) %>% 
+      addMapPane("weather", zIndex = 430) %>% 
       addPolygons(
         data = daily_data,
         layerId = ~Site,
-        color = "red",
+        color = "blue",
         opacity = 1,
         popup = ~ Site,
-        group = "watersheds"
+        group = "watersheds",
+        options = pathOptions(pane = "watersheds")
       ) %>%
       # addCircleMarkers(
       #   data = data(),
@@ -150,18 +211,19 @@ server <-  function(input, output, session){
         opacity = 1.0,
         fillOpacity = 0.9,
         fillColor = ~ colorFactor("Reds", Severity)(Severity),
-        group = "Cameron Peak Fire"
+        group = "Cameron Peak Fire",
+        options = pathOptions(pane = "fire")
       ) %>%
       addScaleBar(position = "bottomright") %>%
       
       addLayersControl(
-        overlayGroups = c("Watersheds",  "Cameron Peak Fire", "Weather Stations",
-                          "Radar"),
+        baseGroups = c("Open Street Map", "Satellite"),
+        overlayGroups = c("Watersheds",  "Cameron Peak Fire", "Weather Stations"),
         position = "topleft",
         options = layersControlOptions(collapsed = FALSE)
       ) %>%
-      hideGroup(c("Weather Stations", "Radar", "Cameron Peak Fire")) %>% 
-      removeTiles("B")
+      hideGroup(c("Weather Stations", "Cameron Peak Fire")) #%>% 
+      #removeTiles(layerId = "B")
     
     
     
@@ -174,24 +236,26 @@ server <-  function(input, output, session){
       clearMarkers() %>% 
     addCircleMarkers(
       data = weather(),
+      layerId = ~id,
       lng = ~ longitude,
       lat = ~ latitude,
       radius = ~ sqrt(variable),
       color = "red",
       stroke = TRUE,
       fillOpacity = 1,
-      popup = paste("Station:", data()$id, "<br>",
-                    input$variable, weather()$variable
-                    ),
-      group = "Weather Stations"
+      popup = paste("Station:", weather()$id, "<br>",
+                   input$variable, weather()$variable
+                   ),
+      group = "Weather Stations",
+      options = pathOptions(pane = "weather")
 
-    ) 
+    )
   })
   
   observe({
     
     leafletProxy("map") %>% 
-      removeTiles("B") %>% 
+      removeTiles(layerId = "B") %>% 
     addWMSTiles(
       layerId = "B",
       "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi?",
@@ -217,26 +281,157 @@ server <-  function(input, output, session){
     clicked_map$clickedShape
   })
   
+  clicked_station <- reactiveValues(clickedMarker = NULL)
+  observeEvent(input$map_marker_click,{
+    clicked_station$clickedMarker <- input$map_marker_click$id
+  })
+  
+  selected_station <- reactive({
+    clicked_station$clickedMarker
+  })
+  
 
-  selected_data <- reactive({
+  selected_stream <- reactive({
     if(is.null(clicked_map$clickedShape))
       return(NULL)
     
-    filter(daily_data, Site == selected_watershed())
+    filter(daily_data, Site == selected_watershed()) %>% 
+      filter(Date >= input$range[1] & Date <= input$range[2]) %>% 
+      dplyr::rename(variable = input$streamVar)
   })
   
-  output$plot1 <- renderPlotly({
-    temp <- selected_data()
-    if(is.null(temp))
+  selected_weather <- reactive({
+    if(is.null(clicked_station$clickedMarker))
       return(NULL)
     
-    plot_ly() %>%
-      add_lines(x = temp$Date, y = temp$P_mm, name = "Precipitation") 
+    filter(weather_coords, id == selected_station()) %>% 
+      mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% 
+      filter(date >= input$range[1] & date <= input$range[2]) %>% 
+      dplyr::rename(variable = input$weatherVar)
+  
   })
   
+
+    output$plot1 <- renderPlotly({
+      
+      
+      stream <- selected_stream()
+      station <- selected_weather()
+      
+      
+      if (is.null(stream) & is.null(station))
+        return(NULL)
+      
+      if (is.null(station)) {
+          plot_ly() %>%
+          add_lines(x = stream$Date,
+                    y = stream$variable,
+                    name = "Watershed Data") %>% 
+          layout(yaxis = list(title = paste0("Watershed Sensor ", input$streamVar)))
+        
+        
+      } else{
+        
+        plot_ly() %>%
+          add_lines(x = stream$Date,
+                    y = stream$variable,
+                    name = "Watershed Data") %>% 
+          add_lines(
+              x = station$date,
+               y = station$variable,
+               name = "Weather Data",
+               yaxis = "y2",
+               color = I("red"),
+               opacity = 0.8
+             ) %>%
+             layout(
+               #title = "Data Test",
+               yaxis2 = list(
+                side = "right",
+                title = paste("Weather Station ", input$weatherVar),
+                overlaying = "y"
+              ),
+              yaxis = list(title = paste0("Watershed Sensor ", input$streamVar))
+            )
+        
+      }
+        
+        # # add_lines(
+        # #   x = station$date,
+        # #   y = station$variable,
+        # #   name = "Weather Data",
+        # #   yaxis = "y2",
+        # #   color = I("red"),
+        # #   opacity = 0.5
+        # # ) %>%
+        # layout(
+        #   #title = "Data Test",
+        #   yaxis2 = list(
+        #     side = "right",
+        #     title = paste("Weather Station ", input$weatherVar),
+        #     overlaying = "y"
+        #   ),
+        #   yaxis = list(title = paste0("Watershed Sensor ", input$streamVar))
+        # )
+      
+
+
+    
+  })
   
 
- 
+  # observe({
+  # 
+  #   stream <- selected_stream()
+  # 
+  #   plotlyProxy("plot1", session) %>%
+  #     #plotlyProxyInvoke("deleteTraces") %>%
+  #     plotlyProxyInvoke(
+  #       "addTraces",
+  #       list(
+  #         x = stream$Date,
+  #         y = stream$variable,
+  #         mode = "lines",
+  #         type = "scatter",
+  #         name = "watershed Data"
+  #       ))
+  # 
+  # })
+  # 
+  # observe({
+  #   station <- selected_weather()
+  #   #stream <- selected_stream()
+  # 
+  #   plotlyProxy("plot1", session) %>%
+  # #     # plotlyProxyInvoke("deleteTraces") %>% 
+  # #     # plotlyProxyInvoke(
+  # #     #   "addTraces",
+  # #     #   list(
+  # #     #     x = stream$Date,
+  # #     #     y = stream$variable,
+  # #     #     mode = "lines",
+  # #     #     type = "scatter",
+  # #     #     name = "watershed Data"
+  # #     #   )
+  # #     # ) %>% 
+  # #   
+  #   plotlyProxyInvoke(
+  #     "addTraces",
+  #     list(
+  #       x = station$date,
+  #       y = station$variable,
+  #       name = "Weather Data",
+  #       yaxis = "y2",
+  #       color = I("red"),
+  #       opacity = 0.5,
+  #       mode = "lines",
+  #       type = 'scatter'
+  #     )
+  #   )
+  # 
+  # 
+  # })
+
 }
 
 

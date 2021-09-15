@@ -57,7 +57,7 @@ location_stations <- meteo_nearby_stations(
   lat_colname = "latitude",
   lon_colname = "longitude",
   station_data = stations_ghcnd,
-  year_min = 2018,
+  year_min = 2015,
   year_max = 2021,
   radius = 30
 ) %>%
@@ -87,7 +87,7 @@ tile_times <-
 
 ##get weather data for all nearby stations
 
-weather_data <- meteo_pull_monitors(location_stations$id, date_min = "2020-08-01",
+weather_data <- meteo_pull_monitors(location_stations$id, date_min = "2015-10-01",
                                     date_max = Sys.Date())
 #this takes a while...save as RDATA
 saveRDS(weather_data, "data/weather_data.RDS")
