@@ -27,7 +27,16 @@ watersheds <- read_sf("data/watersheds.shp")
 #tie daily data to watersheds
 daily_data <- left_join(watersheds, daily_data, by = "Site") %>% 
   st_transform(4326)
-  
+
+
+#read in water quality data
+
+cp_coords <- read_csv("data/CamPeak_Coordinates.csv") %>% rename(Site =  SITE,
+                                                                 long = "X_WGS84",
+                                                                 lat = "Y_WGS84")
+waterQual <- readxl::read_excel("data/CamPk_toMothes_trial.xlsx") %>% 
+  left_join(cp_coords, by = "Site")
+
 
 # #set bounding box around watersheds to pull images from
 # region <- ee$Geometry$BBox( -105.89218, 40.27989, -105.17284, 40.72316)

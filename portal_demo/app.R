@@ -76,24 +76,31 @@ ui <- navbarPage(
                    width = '100%'
                    
                  ),
+                 plotlyOutput("precip", width = "100%", height = 200),
+                 plotlyOutput("q", width = "100%", height = 200),
                  selectInput(
                    "streamVar",
-                   "Sensor Variable:",
+                   "Other Sensor Variables:",
                    choices = c(
-                     "Precipitation" = "P_mm",
                      "Air Temperature" = "Ta_C",
                      "Soil Temperature" = "Ts_C",
                      "Snow Depth" = "Snow_depth_cm",
-                     "Average Daily Discharge" = "Discharge_Ls",
                      "Total Daily Discharge" = "Q_mm"
                    )
                  ),
-                 em(
-                   "Click on a weather station and choose which variable to plot against the watershed data"
+                 plotlyOutput("other", width = "100%", height = 200),
+                 selectInput("waterQual", "Water Quality Variables:",
+                             choices = c("Turbidity", "DOC", "DTN", "pH",
+                                         "ANC", "SC", "Na", "NH4", "K", "Mg",
+                                         "Ca", "F", "Cl", "NO3", "PO4", "SO4")),
+                 plotlyOutput("waterQual", width = "100%", height = 200),
+                 h4(
+                   "NOAA Weather Viewer"
                  ),
+                 em("Click on a weather station to view data"),
                  selectInput(
                    "weatherVar",
-                   "Weather Station Variable:",
+                   "",
                    choices = c(
                      "Precipitation",
                      "Snowfall",
@@ -103,8 +110,9 @@ ui <- navbarPage(
                      "Average Temperature" = "Average_temp"
                    )
                  ),
+                 plotlyOutput("noaa", width = "100%", height = 200),
                  strong("Note: some data may be missing for certain dates/variables"),
-                 plotlyOutput("plot1", width = "100%")
+                 #plotlyOutput("plot1", width = "100%")
                  
                )
                
@@ -320,56 +328,140 @@ server <-  function(input, output, session){
   
   })
   
-
-    output$plot1 <- renderPlotly({
+  output$precip <- renderPlotly({
+    
+    #stream <- selected_stream()
+    
+    if(is.null(selected_stream()))
+      return(NULL)
+    
+    
+    plotly::plot_ly() %>% 
+      add_bars(x = selected_stream()$Date, y = selected_stream()$P_mm, name = "Precipitation (mm)") %>% 
+      plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
+                     xaxis = list(range = c(input$range[1], input$range[2]),
+                                  showgrid = TRUE))
+    
+  })
+  
+  output$q <- renderPlotly({
+    
+   # stream <- selected_stream
+    
+    
+    if(is.null(selected_stream()))
+      return(NULL)
+    
+    plot_ly() %>%
+      add_lines(x = selected_stream()$Date,
+                y = selected_stream()$Discharge_Ls,
+                name = "Average Daily Discharge") %>%
+      plotly::layout(yaxis = list(title ="Q (L/s)"),
+                     xaxis = list(range = c(input$range[1], input$range[2]),
+                                  showgrid = T))
+    
+    
+  })
+  
+  output$other <- renderPlotly({
+    
+    # stream <- selected_stream
+    
+    
+    if(is.null(selected_stream()))
+      return(NULL)
+    
+    plot_ly() %>%
+      add_lines(x = selected_stream()$Date,
+                y = selected_stream()$variable,
+                name = input$streamVar) %>%
+      plotly::layout(yaxis = list(title = input$streamVar),
+                     xaxis = list(range = c(input$range[1], input$range[2]),
+                                  showgrid = T))
+    
+    
+  })
+  
+  output$noaa <- renderPlotly({
+    
+    station <- selected_weather()
+    
+    if(is.null(station))
+      return(NULL)
+    
+    if(input$weatherVar == "Precipitation"){
+      
+      plotly::plot_ly() %>% 
+        add_bars(x = station$date, y = station$variable, name = "Precipitation (mm)") %>% 
+        plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
+                       xaxis = list(range = c(input$range[1], input$range[2]),
+                                    showgrid = TRUE))
+    }else {
+      
+      plot_ly() %>% 
+        add_lines(x = station$date,
+                  y = station$variable,
+                  name = paste(input$weatherVar)) %>% 
+        plotly::layout(yaxis = list(title = input$weatherVar),
+                       xaxis = list(range = c(input$range[1], input$range[2]),
+                                    showgrid = T))
       
       
-      stream <- selected_stream()
-      station <- selected_weather()
-      
-      
-      if (is.null(stream) & is.null(station))
-        return(NULL)
-        
+    }
+    
+    
+    
+  })
 
-      if (is.null(station)) {
-          plotly::plot_ly() %>%
-          add_lines(x = stream$Date,
-                    y = stream$variable,
-                    name = "Watershed Data") %>% 
-          plotly::layout(yaxis = list(title = paste0("Watershed Sensor ", input$streamVar)))
-        
-        
-       } else{
-
-        plotly::plot_ly() %>%
-          add_lines(x = stream$Date,
-                    y = stream$variable,
-                    name = "Watershed Data") %>%
-          add_lines(
-              x = station$date,
-               y = station$variable,
-               name = "Weather Data",
-               yaxis = "y2",
-               color = I("red"),
-               opacity = 0.8
-             ) %>%
-             plotly::layout(
-               #title = "Data Test",
-               yaxis2 = list(
-                side = "right",
-                title = paste("Weather Station ", input$weatherVar),
-                overlaying = "y"
-              ),
-              yaxis = list(title = paste0("Watershed Sensor ", input$streamVar))
-            )
-
-      }
+    # output$plot1 <- renderPlotly({
+    #   
+    #   
+    #   stream <- selected_stream()
+    #   station <- selected_weather()
+    #   
+    #   
+    #   if (is.null(stream) & is.null(station))
+    #     return(NULL)
+    #     
+    # 
+    #   if (is.null(station)) {
+    #       plotly::plot_ly() %>%
+    #       add_lines(x = stream$Date,
+    #                 y = stream$variable,
+    #                 name = "Watershed Data") %>% 
+    #       plotly::layout(yaxis = list(title = paste0("Watershed Sensor ", input$streamVar)))
+    #     
+    #     
+    #    } else{
+    # 
+    #     plotly::plot_ly() %>%
+    #       add_lines(x = stream$Date,
+    #                 y = stream$variable,
+    #                 name = "Watershed Data") %>%
+    #       add_lines(
+    #           x = station$date,
+    #            y = station$variable,
+    #            name = "Weather Data",
+    #            yaxis = "y2",
+    #            color = I("red"),
+    #            opacity = 0.8
+    #          ) %>%
+    #          plotly::layout(
+    #            #title = "Data Test",
+    #            yaxis2 = list(
+    #             side = "right",
+    #             title = paste("Weather Station ", input$weatherVar),
+    #             overlaying = "y"
+    #           ),
+    #           yaxis = list(title = paste0("Watershed Sensor ", input$streamVar))
+    #         )
+    # 
+    #   }
 
 
 
     
-  })
+  
    
     #map tab ------------------------ 
     
