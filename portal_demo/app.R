@@ -11,6 +11,7 @@ library(sf)
 camPeak_simple <- readRDS("data/camPeakSimple.RDS")
 weather_coords <- readRDS("data/weather_coords.RDS")
 daily_data <- readRDS("data/daily_data.RDS")
+water_qual <- readRDS("data/water_qual.RDS")
 
 #from shinyTime:
 dateToTimeList <- function(value){
@@ -53,31 +54,30 @@ ui <- navbarPage(
            fluidPage(#sidebarLayout(
              #position = "right",
              fluidRow(
-               column(6,
+               column(4,
                       leaflet::leafletOutput(
-                        "map1", width = '100%' , height = 800
-                      )),
+                        "map1", width = '100%' , height = 400
+                      ),
+                      em(
+                        "Click on an object to view time series plots to the right"
+                      ),),
                
                
                column(
-                 6,
-                 em(
-                   "Click on a watershed and choose the date range and variable you want to view"
-                 ),
-                 br(),
-                 br(),
+                 8,
+                 
                  sliderInput(
                    "range",
-                   "Date Range:",
-                   value = c(as.Date("2015-10-01"), as.Date("2019-09-30")),
+                   "",
+                   value = c(as.Date("2015-10-01"), as.Date("2021-08-25")),
                    min = as.Date("2015-10-01"),
-                   max = as.Date("2019-09-30"),
+                   max = as.Date("2021-08-25"),
                    timezone = "-0600",
                    width = '100%'
                    
                  ),
-                 plotlyOutput("precip", width = "100%", height = 200),
-                 plotlyOutput("q", width = "100%", height = 200),
+                 plotlyOutput("precip", width = "100%", height = 120),
+                 plotlyOutput("q", width = "100%", height = 150),
                  selectInput(
                    "streamVar",
                    "Other Sensor Variables:",
@@ -88,19 +88,19 @@ ui <- navbarPage(
                      "Total Daily Discharge" = "Q_mm"
                    )
                  ),
-                 plotlyOutput("other", width = "100%", height = 200),
+                 plotlyOutput("other", width = "100%", height = 150),
                  selectInput("waterQual", "Water Quality Variables:",
                              choices = c("Turbidity", "DOC", "DTN", "pH",
                                          "ANC", "SC", "Na", "NH4", "K", "Mg",
                                          "Ca", "F", "Cl", "NO3", "PO4", "SO4")),
-                 plotlyOutput("waterQual", width = "100%", height = 200),
-                 h4(
-                   "NOAA Weather Viewer"
-                 ),
-                 em("Click on a weather station to view data"),
+                 plotlyOutput("waterQual", width = "100%", height = 150),
+                 # h4(
+                 #   "NOAA Weather Viewer"
+                 # ),
+
                  selectInput(
                    "weatherVar",
-                   "",
+                   "NOAA Weather Stations",
                    choices = c(
                      "Precipitation",
                      "Snowfall",
@@ -110,7 +110,7 @@ ui <- navbarPage(
                      "Average Temperature" = "Average_temp"
                    )
                  ),
-                 plotlyOutput("noaa", width = "100%", height = 200),
+                 plotlyOutput("noaa", width = "100%", height = 150),
                  strong("Note: some data may be missing for certain dates/variables"),
                  #plotlyOutput("plot1", width = "100%")
                  
@@ -207,14 +207,15 @@ server <-  function(input, output, session){
   
   output$map1 <- leaflet::renderLeaflet({
     leaflet() %>%
-      addTiles(layerId = "A", group = "Open Street Map") %>%
-      addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>% 
-    addMapPane("fire", zIndex = 410) %>% 
-      addMapPane("watersheds", zIndex = 420) %>% 
-      addMapPane("weather", zIndex = 430) %>% 
+      addTiles(group = "Open Street Map") %>%
+      addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>%
+      addMapPane("fire", zIndex = 410) %>%
+      addMapPane("watersheds", zIndex = 420) %>%
+      addMapPane("waterqual", zIndex = 430) %>%
+      addMapPane("weather", zIndex = 440) %>%
       addPolygons(
         data = daily_data,
-        layerId = ~Site,
+        layerId = ~ Site,
         color = "blue",
         opacity = 1,
         popup = ~ Site,
@@ -232,16 +233,47 @@ server <-  function(input, output, session){
         group = "Cameron Peak Fire",
         options = pathOptions(pane = "fire")
       ) %>%
+      addCircleMarkers(
+        data = water_qual,
+        layerId = ~ Site,
+        lng = ~ long,
+        lat = ~ lat,
+        radius = 2,
+        color = "yellow",
+        stroke = TRUE,
+        fillOpacity = 1,
+        popup = paste(
+          "Site:",
+          water_qual$Site,
+          "<br>",
+          "ID:",
+          water_qual$IDNo,
+          "<br>",
+          "Site Type:",
+          water_qual$SiteType,
+          "<br>",
+          "CP Fire:",
+          water_qual$Trt_CP
+        ),
+        
+        group = "Water Quality Sensors",
+        options = pathOptions(pane = "waterqual")
+      ) %>%
       addScaleBar(position = "bottomright") %>%
       
       addLayersControl(
         baseGroups = c("Open Street Map", "Satellite"),
-        overlayGroups = c("Watersheds",  "Cameron Peak Fire", "Weather Stations"),
+        overlayGroups = c(
+          "Watersheds",
+          "Water Quality Sensors",
+          "Weather Stations",
+          "Cameron Peak Fire"
+        ),
         position = "topleft",
-        options = layersControlOptions(collapsed = FALSE)
+        options = layersControlOptions(collapsed = TRUE)
       ) %>%
-      hideGroup( "Cameron Peak Fire")  
-
+      hideGroup("Cameron Peak Fire")
+    
     
     
   })
@@ -251,13 +283,13 @@ server <-  function(input, output, session){
     input$nav
     
     tab1 <- leafletProxy("map1") %>%
-      clearMarkers() %>% 
+      removeMarker("Weather Stations") %>% 
     addCircleMarkers(
       data = weather(),
       layerId = ~id,
       lng = ~ longitude,
       lat = ~ latitude,
-      radius = 1,
+      radius = 2,
       color = "red",
       stroke = TRUE,
       fillOpacity = 1,
@@ -289,43 +321,43 @@ server <-  function(input, output, session){
   })
   
 
-  clicked_map <- reactiveValues(clickedShape=NULL)
-  observeEvent(input$map1_shape_click,{
-    clicked_map$clickedShape <- input$map1_shape_click
-  })
-  
-  selected_watershed <- reactive({
-    clicked_map$clickedShape
-  })
-  
-  clicked_station <- reactiveValues(clickedMarker = NULL)
-  observeEvent(input$map1_marker_click,{
-    clicked_station$clickedMarker <- input$map1_marker_click$id
-  })
-  
-  selected_station <- reactive({
-    clicked_station$clickedMarker
-  })
-  
-
   selected_stream <- reactive({
-    if(is.null(clicked_map$clickedShape))
+    if(is.null(input$map1_shape_click))
       return(NULL)
     
-    filter(daily_data, Site == selected_watershed()) %>% 
+    filter(daily_data, Site == input$map1_shape_click) %>% 
       filter(as.Date(Date) >= input$range[1] & as.Date(Date) <= input$range[2]) %>% 
       dplyr::rename(variable = input$streamVar)
   })
   
   selected_weather <- reactive({
-    if(is.null(clicked_station$clickedMarker))
+    if(is.null(input$map1_marker_click))
       return(NULL)
     
-    filter(weather_coords, id == selected_station()) %>% 
-      mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% 
-      filter(as.Date(date) >= input$range[1] & as.Date(date) <= input$range[2]) %>% 
-      dplyr::rename(variable = input$weatherVar)
+    #if(selected_point() %in% weather_coords$id){
+     
+       filter(weather_coords, id == input$map1_marker_click$id) %>% 
+        mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% 
+        filter(as.Date(date) >= input$range[1] & as.Date(date) <= input$range[2]) %>% 
+        dplyr::rename(variable = input$weatherVar)
+      
+      
+      
+    #} 
+  })
   
+  selected_qual <- reactive({
+    if(is.null(input$map1_marker_click))
+      return(NULL)
+    
+   # if(selected_point() %in% water_qual$Site){
+      
+      filter(water_qual, Site == input$map1_marker_click$id) %>% 
+        filter(as.Date(Date) >= input$range[1] & as.Date(Date) <= input$range[2]) %>% 
+        dplyr::rename(variable = input$waterQual)
+    
+      #} 
+   
   })
   
   output$precip <- renderPlotly({
@@ -382,36 +414,53 @@ server <-  function(input, output, session){
     
   })
   
-  output$noaa <- renderPlotly({
+  output$waterQual <- renderPlotly({
     
-    station <- selected_weather()
     
-    if(is.null(station))
+    if(is.null(selected_qual()))
       return(NULL)
     
-    if(input$weatherVar == "Precipitation"){
-      
-      plotly::plot_ly() %>% 
-        add_bars(x = station$date, y = station$variable, name = "Precipitation (mm)") %>% 
-        plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
-                       xaxis = list(range = c(input$range[1], input$range[2]),
-                                    showgrid = TRUE))
-    }else {
-      
-      plot_ly() %>% 
-        add_lines(x = station$date,
-                  y = station$variable,
-                  name = paste(input$weatherVar)) %>% 
-        plotly::layout(yaxis = list(title = input$weatherVar),
-                       xaxis = list(range = c(input$range[1], input$range[2]),
-                                    showgrid = T))
-      
-      
-    }
-    
+    plot_ly() %>%
+      add_lines(x = selected_qual()$Date,
+                y = selected_qual()$variable,
+                name = input$waterQual) %>%
+      plotly::layout(yaxis = list(title = input$waterQual),
+                     xaxis = list(range = c(input$range[1], input$range[2]),
+                                  showgrid = T))
     
     
   })
+  
+  # output$noaa <- renderPlotly({
+  #   
+  #   station <- selected_weather()
+  #   
+  #   if(is.null(station))
+  #     return(NULL)
+  #   
+  #   if(input$weatherVar == "Precipitation"){
+  #     
+  #     plotly::plot_ly() %>% 
+  #       add_bars(x = station$date, y = station$variable, name = "Precipitation (mm)") %>% 
+  #       plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
+  #                      xaxis = list(range = c(input$range[1], input$range[2]),
+  #                                   showgrid = TRUE))
+  #   }else {
+  #     
+  #     plot_ly() %>% 
+  #       add_lines(x = station$date,
+  #                 y = station$variable,
+  #                 name = paste(input$weatherVar)) %>% 
+  #       plotly::layout(yaxis = list(title = input$weatherVar),
+  #                      xaxis = list(range = c(input$range[1], input$range[2]),
+  #                                   showgrid = T))
+  #     
+  #     
+  #   }
+  #   
+  #   
+  #   
+  # })
 
     # output$plot1 <- renderPlotly({
     #   

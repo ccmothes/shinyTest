@@ -48,3 +48,16 @@ plot_ly() %>%
                        overlaying = "y"),
          yaxis = list(title = "Stream Gage Precipitation"))
 
+
+
+#waterqual plotly
+
+water_test <- water_qual %>% filter(Site == "Deadman")
+
+plotly::plot_ly() %>%
+  add_lines(x = water_test$Date,
+            y = water_test$Turbidity,
+            name = "Turbidity") %>%
+  plotly::layout(yaxis = list(title = "Turbidity"),
+                 xaxis = list(range = c(min(water_test$Date), max(water_test$Date)),
+                              showgrid = T))
