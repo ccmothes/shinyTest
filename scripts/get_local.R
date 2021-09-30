@@ -17,7 +17,7 @@ files <- vector("list", length = length(sites))
 for (i in 1:length(sites)){
   
   files[[i]] <- purrr::map(list.files(
-    path = "data/",
+    path = "data/old",
     pattern = sites[i],
     full.names = TRUE
   ), read_csv) %>% 
@@ -27,7 +27,13 @@ for (i in 1:length(sites)){
   
 }
 
-daily_data <- bind_rows(files)
+daily_data <- bind_rows(files) %>%
+  distinct(Date, Site, .keep_all = TRUE)
+  # group_by(Site, Date) %>% 
+  # summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE))) %>% 
+  # ungroup()
+
+        
 
 
 #old data
@@ -61,7 +67,12 @@ cp_coords <- read_csv("data/CamPeak_Coordinates.csv") %>% rename(Site =  SITE,
                                                                  long = "X_WGS84",
                                                                  lat = "Y_WGS84")
 waterQual <- readxl::read_excel("data/CamPk_toMothes_trial.xlsx") %>% 
-  left_join(cp_coords, by = "Site")
+  left_join(cp_coords, by = "Site") %>% 
+  group_by(Site, Date, SiteLabel, SiteType, Trt_CP) %>% summarise(across(where(is.numeric),
+                                            ~mean(.x, na.rm = TRUE))) %>% 
+  ungroup()
+
+
 saveRDS(waterQual, "portal_demo/data/water_qual.RDS")
 
 
@@ -78,4 +89,9 @@ saveRDS(waterQual, "portal_demo/data/water_qual.RDS")
 # watershed_ee <- sf_as_ee(watersheds)
 # 
 # locations_ee <- sf_as_ee(locations)
+
+#get hydrology layers
+
+library(arcpullr)
+
 

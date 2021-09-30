@@ -52,6 +52,8 @@ plot_ly() %>%
 
 #waterqual plotly
 
+water_qual <- readRDS("portal_demo/data/water_qual.RDS")
+
 water_test <- water_qual %>% filter(Site == "Deadman")
 
 plotly::plot_ly() %>%
@@ -59,5 +61,5 @@ plotly::plot_ly() %>%
             y = water_test$Turbidity,
             name = "Turbidity") %>%
   plotly::layout(yaxis = list(title = "Turbidity"),
-                 xaxis = list(range = c(min(water_test$Date), max(water_test$Date)),
+                 xaxis = list(range = c(min, max),
                               showgrid = T))

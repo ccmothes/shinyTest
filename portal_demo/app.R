@@ -89,7 +89,7 @@ ui <- navbarPage(
                    )
                  ),
                  plotlyOutput("other", width = "100%", height = 150),
-                 selectInput("waterQual", "Water Quality Variables:",
+                 selectInput("qual", "Water Quality Variables:",
                              choices = c("Turbidity", "DOC", "DTN", "pH",
                                          "ANC", "SC", "Na", "NH4", "K", "Mg",
                                          "Ca", "F", "Cl", "NO3", "PO4", "SO4")),
@@ -219,7 +219,7 @@ server <-  function(input, output, session){
         color = "blue",
         opacity = 1,
         popup = ~ Site,
-        group = "watersheds",
+        group = "Watersheds",
         options = pathOptions(pane = "watersheds")
       ) %>%
       addPolygons(
@@ -235,7 +235,7 @@ server <-  function(input, output, session){
       ) %>%
       addCircleMarkers(
         data = water_qual,
-        layerId = ~ Site,
+        layerId = ~ SiteLabel,
         lng = ~ long,
         lat = ~ lat,
         radius = 2,
@@ -245,9 +245,6 @@ server <-  function(input, output, session){
         popup = paste(
           "Site:",
           water_qual$Site,
-          "<br>",
-          "ID:",
-          water_qual$IDNo,
           "<br>",
           "Site Type:",
           water_qual$SiteType,
@@ -259,6 +256,9 @@ server <-  function(input, output, session){
         group = "Water Quality Sensors",
         options = pathOptions(pane = "waterqual")
       ) %>%
+      #addLegend("bottomright", data = daily_data, group = "watersheds", colors = "blue", labels = "Watersheds") %>% 
+      #addLegend("bottomright", data = water_qual, group = "Water Quality Censors", colors = "yellow", labels = "Water Quality Sensors") %>% 
+      #addLegend("bottomright", values = camPeak_simple, group = "Cameron Peak Fire", pal = ~ colorFactor("Reds", Severity)(Severity)) %>% 
       addScaleBar(position = "bottomright") %>%
       
       addLayersControl(
@@ -296,7 +296,8 @@ server <-  function(input, output, session){
       popup = paste("Station:", weather()$id
                    ),
       group = "Weather Stations",
-      options = pathOptions(pane = "weather"))
+      options = pathOptions(pane = "weather")) #%>% 
+      #addLegend("bottomright", values = weather(), colors = "red", group = "Weather Stations")
       
       tab2 <- leafletProxy("map2") %>%
         clearMarkers() %>% 
@@ -333,30 +334,38 @@ server <-  function(input, output, session){
   selected_weather <- reactive({
     if(is.null(input$map1_marker_click))
       return(NULL)
-    
-    #if(selected_point() %in% weather_coords$id){
-     
-       filter(weather_coords, id == input$map1_marker_click$id) %>% 
-        mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>% 
-        filter(as.Date(date) >= input$range[1] & as.Date(date) <= input$range[2]) %>% 
+
+    if(input$map1_marker_click$id %in% weather_coords$id){
+
+       filter(weather_coords, id == input$map1_marker_click$id) %>%
+        mutate(date = as.POSIXct(date, format = "%m/%d/%Y")) %>%
+        filter(as.Date(date) >= input$range[1] & as.Date(date) <= input$range[2]) %>%
         dplyr::rename(variable = input$weatherVar)
-      
-      
-      
-    #} 
+
+
+
+    } else{
+      return(NULL)
+    }
+    
   })
   
   selected_qual <- reactive({
     if(is.null(input$map1_marker_click))
       return(NULL)
     
-   # if(selected_point() %in% water_qual$Site){
-      
-      filter(water_qual, Site == input$map1_marker_click$id) %>% 
+    if(input$map1_marker_click$id %in% water_qual$SiteLabel){
+      filter(water_qual, SiteLabel == input$map1_marker_click$id) %>% 
         filter(as.Date(Date) >= input$range[1] & as.Date(Date) <= input$range[2]) %>% 
-        dplyr::rename(variable = input$waterQual)
-    
-      #} 
+        dplyr::rename(variable = input$qual)
+      
+      
+      
+    } else {
+      return(NULL)
+    }
+
+       
    
   })
   
@@ -415,52 +424,53 @@ server <-  function(input, output, session){
   })
   
   output$waterQual <- renderPlotly({
-    
-    
-    if(is.null(selected_qual()))
+
+    quality <- selected_qual()
+
+    if(is.null(quality))
       return(NULL)
-    
-    plot_ly() %>%
-      add_lines(x = selected_qual()$Date,
-                y = selected_qual()$variable,
-                name = input$waterQual) %>%
-      plotly::layout(yaxis = list(title = input$waterQual),
+
+    plotly::plot_ly() %>%
+      add_lines(x = quality$Date,
+                y = quality$variable,
+                name = input$qual) %>%
+      plotly::layout(yaxis = list(title = input$qual),
                      xaxis = list(range = c(input$range[1], input$range[2]),
                                   showgrid = T))
-    
-    
+
+
   })
-  
-  # output$noaa <- renderPlotly({
-  #   
-  #   station <- selected_weather()
-  #   
-  #   if(is.null(station))
-  #     return(NULL)
-  #   
-  #   if(input$weatherVar == "Precipitation"){
-  #     
-  #     plotly::plot_ly() %>% 
-  #       add_bars(x = station$date, y = station$variable, name = "Precipitation (mm)") %>% 
-  #       plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
-  #                      xaxis = list(range = c(input$range[1], input$range[2]),
-  #                                   showgrid = TRUE))
-  #   }else {
-  #     
-  #     plot_ly() %>% 
-  #       add_lines(x = station$date,
-  #                 y = station$variable,
-  #                 name = paste(input$weatherVar)) %>% 
-  #       plotly::layout(yaxis = list(title = input$weatherVar),
-  #                      xaxis = list(range = c(input$range[1], input$range[2]),
-  #                                   showgrid = T))
-  #     
-  #     
-  #   }
-  #   
-  #   
-  #   
-  # })
+
+  output$noaa <- renderPlotly({
+
+    station <- selected_weather()
+
+    if(is.null(station))
+      return(NULL)
+
+    if(input$weatherVar == "Precipitation"){
+
+      plotly::plot_ly() %>%
+        add_bars(x = station$date, y = station$variable, name = "Precipitation (mm)") %>%
+        plotly::layout(yaxis = list(title = "P (mm)", autorange = "reversed"),
+                       xaxis = list(range = c(input$range[1], input$range[2]),
+                                    showgrid = TRUE))
+    }else {
+
+      plot_ly() %>%
+        add_lines(x = station$date,
+                  y = station$variable,
+                  name = paste(input$weatherVar)) %>%
+        plotly::layout(yaxis = list(title = input$weatherVar),
+                       xaxis = list(range = c(input$range[1], input$range[2]),
+                                    showgrid = T))
+
+
+    }
+
+
+
+  })
 
     # output$plot1 <- renderPlotly({
     #   
