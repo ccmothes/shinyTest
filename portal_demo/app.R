@@ -209,6 +209,21 @@ server <-  function(input, output, session){
     leaflet() %>%
       addTiles(group = "Open Street Map") %>%
       addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>%
+      addWMSTiles(
+        sprintf(
+          "https://%s/arcgis/services/%s/MapServer/WmsServer",
+          "basemap.nationalmap.gov",
+          "USGSTopo"
+        ),
+        group = "USGS Topo",
+        attribution = paste0(
+          "<a href='https://www.usgs.gov/'>",
+          "U.S. Geological Survey</a> | ",
+          "<a href='https://www.usgs.gov/laws/policies_notices.html'>",
+          "Policies</a>"
+        ),
+        layers = "0"
+      ) %>% 
       addMapPane("fire", zIndex = 410) %>%
       addMapPane("watersheds", zIndex = 420) %>%
       addMapPane("waterqual", zIndex = 430) %>%
@@ -262,7 +277,7 @@ server <-  function(input, output, session){
       addScaleBar(position = "bottomright") %>%
       
       addLayersControl(
-        baseGroups = c("Open Street Map", "Satellite"),
+        baseGroups = c("USGS Topo", "Open Street Map", "Satellite"),
         overlayGroups = c(
           "Watersheds",
           "Water Quality Sensors",
@@ -528,7 +543,22 @@ server <-  function(input, output, session){
     output$map2 <- leaflet::renderLeaflet({
       leaflet() %>%
         addTiles(layerId = "A", group = "Open Street Map") %>%
-        addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>% 
+        addProviderTiles("Esri.WorldImagery", layerId = "C", group = "Satellite") %>%
+        addWMSTiles(
+          sprintf(
+            "https://%s/arcgis/services/%s/MapServer/WmsServer",
+            "basemap.nationalmap.gov",
+            "USGSTopo"
+          ),
+          group = "USGS Topo",
+          attribution = paste0(
+            "<a href='https://www.usgs.gov/'>",
+            "U.S. Geological Survey</a> | ",
+            "<a href='https://www.usgs.gov/laws/policies_notices.html'>",
+            "Policies</a>"
+          ),
+          layers = "0"
+        ) %>% 
         addMapPane("fire", zIndex = 410) %>% 
         addMapPane("watersheds", zIndex = 420) %>% 
         addMapPane("weather", zIndex = 430) %>% 
@@ -555,7 +585,7 @@ server <-  function(input, output, session){
         addScaleBar(position = "bottomright") %>%
         
         addLayersControl(
-          baseGroups = c("Open Street Map", "Satellite"),
+          baseGroups = c("USGS Topo", "Open Street Map", "Satellite"),
           overlayGroups = c("Watersheds",  "Cameron Peak Fire", "Weather Stations"),
           position = "topright",
           options = layersControlOptions(collapsed = FALSE)
