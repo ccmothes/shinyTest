@@ -34,7 +34,7 @@ leaflet() %>%
 
 
 
-# retrieve sensor info
+# dataRetrieval
 
 # string of sensor names in poudre watershed
 
@@ -57,19 +57,32 @@ site_meta <- readNWISsite(sites) %>%
 data_avail <- whatNWISdata(siteNumber = sites, service = "dv", statCd = "00003")
 # only discharge data avail
 
-#pcode <- readNWISpCode("all")
+
+pcode <- readNWISpCode("00060")
 
 
 x <- readNWISstat(siteNumbers = sites, parameterCd = "00060",
                   statReportType = "daily", startDate = "2020", endDate = "2021")
 
+x2 <- readNWISdata(sites = sites, parameterCd = "00060", service = "stat",
+                   statReportType = "daily", startDate = "2020-01-01",
+                   endDate = "2015-01-30")
+
+#get daily data fro discharge
+x3 <- readNWISdv(sites, "00060", "2020-01-01", Sys.Date())
+
 
 #now join with meta to get coords
+usgs_sites <- left_join(site_meta, x3, by = "site_no") %>% 
+  dplyr::select(site_no, station_name, long, lat, datum, source = agency_cd,
+                date = Date,  discharge_cfs = X_00060_00003)
+               
 
 
 
+#test out other variables
 y <- readNWISdv(siteNumbers = sites, startDate = "2020", endDate = "2021",
-                parameterCd = "00010")
+                parameterCd = "00060")
 
 
 qwData <- readNWISdata(state_cd = "CO",
@@ -81,3 +94,4 @@ qwData <- readNWISdata(state_cd = "CO",
                                                    "drain_area_va",
                                                    "obs_count_nu"),
                        service="qw")
+#none in the poudre watershed
