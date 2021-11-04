@@ -88,7 +88,7 @@ tile_times <-
 ##get weather data for all nearby stations
 
 weather_data <- meteo_pull_monitors(location_stations$id, date_min = "2015-10-01",
-                                    date_max = Sys.Date())
+                                    date_max = "2021-10-01")
 #this takes a while...save as RDATA
 saveRDS(weather_data, "data/weather_data.RDS")
 #not data for all stations/dates...
@@ -99,6 +99,8 @@ weather_coords <- weather_data %>% left_join(location_stations, by = "id") %>%
   dplyr::select(id, date, Precipitation = prcp, Snowfall = snow, Snow_depth = snwd,
          Minimum_temp = tmin, Maximum_temp = tmax, Average_temp = tavg, latitude,
          longitude)
+
+saveRDS(weather_coords, "Data/weather_coords.RDS")
 
 #filter to single date
 weather_date <- weather_coords %>% filter(date == "2021-07-21")
