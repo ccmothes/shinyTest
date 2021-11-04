@@ -572,7 +572,7 @@ server <-  function(input, output, session){
     observe({
 
       leafletProxy("map2") %>%
-        removeTiles(layerId = "B") %>%
+        removeTiles(layerId = "B") %>% 
         addWMSTiles(
           layerId = "B",
           "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi?",
