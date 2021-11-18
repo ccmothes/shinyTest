@@ -5,10 +5,9 @@ account: ccmothes
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4660027
-bundleId: 5045018
+bundleId: 5175760
 url: https://ccmothes.shinyapps.io/portal_demo/
-when: 1631917883.67756
-lastSyncTime: 1631917883.67756
+when: 1635187037.90129
+lastSyncTime: 1635187037.90129
 asMultiple: FALSE
 asStatic: FALSE
-ignoredFiles: data/daily_data.csv|data/weather_coords.csv

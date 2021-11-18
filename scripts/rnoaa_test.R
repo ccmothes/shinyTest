@@ -34,6 +34,7 @@ leaflet(data = df) %>%
 
 # ghcnd has more
 stations_ghcnd <- ghcnd_stations()
+saveRDS(stations_ghcnd, "data/stations_ghcnd.RDS")
 
 nearby_stations <- meteo_distance(station_data = stations_ghcnd, lat = 40.55873,
                                   long = -105.1794, radius = 10)
@@ -64,6 +65,8 @@ location_stations <- meteo_nearby_stations(
   bind_rows %>% 
   distinct(id, .keep_all = TRUE)
 
+saveRDS(location_stations, "data/location_stations.RDS")
+
 
 leaflet() %>% 
   addTiles() %>% 
@@ -88,7 +91,7 @@ tile_times <-
 ##get weather data for all nearby stations
 
 weather_data <- meteo_pull_monitors(location_stations$id, date_min = "2015-10-01",
-                                    date_max = "2021-10-01")
+                                    date_max = Sys.Date())
 #this takes a while...save as RDATA
 saveRDS(weather_data, "data/weather_data.RDS")
 #not data for all stations/dates...
@@ -100,7 +103,7 @@ weather_coords <- weather_data %>% left_join(location_stations, by = "id") %>%
          Minimum_temp = tmin, Maximum_temp = tmax, Average_temp = tavg, latitude,
          longitude)
 
-saveRDS(weather_coords, "Data/weather_coords.RDS")
+saveRDS(weather_coords, "data/weather_coords.RDS")
 
 #filter to single date
 weather_date <- weather_coords %>% filter(date == "2021-07-21")

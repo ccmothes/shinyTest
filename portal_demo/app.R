@@ -11,13 +11,15 @@ library(shinyWidgets)
 
 camPeak_simple <- readRDS("data/camPeakSimple.RDS")
 
-weather_data <- readRDS("data/weather_coords.RDS") %>% 
+weather_data <- readRDS("data/weather_update.RDS") %>% 
   rename(Site = id, Date = date, long = longitude, lat = latitude) %>% 
   mutate(source = "NOAA")
 
 water_data <- readRDS("data/water_data.RDS") %>% arrange(Date) %>% 
   mutate(source_spec = if_else(source == "CSU_Kampf", "CSU-Stephanie Kampf", source)) %>% 
   mutate(source = if_else(source == "CSU_Kampf", "CSU", source))
+
+sites <- water_data %>% distinct(Site, .keep_all = TRUE) %>% dplyr::select(Site, source, long, lat)
 
 
 #from shinyTime:
@@ -42,7 +44,12 @@ ui <- navbarPage(
     secondary = "#DD5B27",
     success = "#f28e35",
     base_font = font_google("Cairo")
-  ),
+  ) %>% 
+    bslib::bs_add_rules("label {
+        font-size: 15px;
+        font-weight: bold;
+      }"),
+
   
   "Portal Demo",
   id = "nav",
@@ -60,72 +67,129 @@ ui <- navbarPage(
            
            fluidPage(#sidebarLayout(
              #position = "right",
+             # tags$head(
+             #   tags$style(type = "text/css", "#weatherVar {color: orange}"
+             #                  )),
+                               
+                               
+             #                   .selectize-input {
+             #                   white-space: nowrap;
+             #                   font-weight: bold;
+             #                   height: 25px;
+             #                   width: 150px;
+             #                   padding: 0}
+             #                   "))
+             # ),
              fluidRow(
                column(4,
-                      leaflet::leafletOutput(
-                        "map1", width = '100%' , height = 400
+                      tabsetPanel(
+                        tabPanel(
+                          "Map",
+                          leaflet::leafletOutput("map1", width = '100%' , height = 400)
                       ),
-                      em(
-                        "Click on an object to view time series plots to the right"
-                      ),
-                      hr(),
-                      actionButton("clear", "Clear Plots")),
+                      tabPanel("Table", div(DT::dataTableOutput("table"), style = "font-size:80%")
+                      )),
+               em("Click on an object to view time series plots to the right"),
+               hr(),
+               actionButton("clear", "Clear Plots"),
+               br(),
+               br(),
+               multiInput("sourceChoice", "Filter by Source:",
+                          choices = c("CSU", "FoCo", "USFS", "USGS"),
+                          selected = c("CSU", "FoCo", "USFS", "USGS")),
+               checkboxGroupButtons(
+                 inputId = "varChoice",
+                 label = "Filter by Category:",
+                 choices = c("Precipitation", "Snow", "Streamflow", "Water Quality", "Temperature"),
+                 direction = "horizontal",
+                 individual = TRUE,
+                 status = "primary",
+                 checkIcon = list(
+                   yes = icon("check-square"),
+                   no = icon("square-o")
+                 ))
+               # checkboxGroupInput("varChoice", label = "Filter by Category",
+               #                    choices = c("Precipitation", "Snow", "Streamflow", "Water Quality", 'Temperature'))
                
-               
-               column(
-                 8,
-                 
-                 sliderInput(
-                   "range",
-                   "",
-                   value = c(as.Date("2020-01-01"), as.Date("2021-10-01")),
-                   min = as.Date("2015-10-01"),
-                   max = as.Date("2021-10-01"),
-                   timezone = "-0600",
-                   width = '100%'
-                   
-                 ),
-                 p("Precipitation"),
-                 
-                 plotlyOutput("precip", width = "100%", height = 120),
-                 selectInput(
-                   "weatherVar",
-                   "NOAA Weather Stations",
-                   choices = c(
-                     "Precipitation",
-                     "Snowfall",
-                     "Snow Depth" = "Snow_depth",
-                     "Minimum Temperature" = "Minimum_temp",
-                     "Maximum Temperature" = "Maximum_temp",
-                     "Average Temperature" = "Average_temp"
-                   ),
-                   selected = "Snowfall"
-                 ),
-                 plotlyOutput("noaa", width = "100%", height = 150),
-                 selectInput(
-                   "streamVar",
-                   "Streamflow",
-                   choices = c(
-                     "Discharge" = "discharge_Ls",
-                     "Stage" = "stage_cm"
-                   )),
-                 
-                 plotlyOutput("q", width = "100%", height = 150),
-                 selectInput("qual", "Water Quality",
-                             choices = c("Turbidity" = "Turbidity", "pH" = "pH", "DO" = "DO", "Conductivity" = "Conductivity")),
-                 plotlyOutput("waterQual", width = "100%", height = 150),
-                 # h4(
-                 #   "NOAA Weather Viewer"
-                 # ),
-                 
-                
-                 strong("Note: some data may be missing for certain dates/variables")
-                 #plotlyOutput("plot1", width = "100%")
-                 
-               )
-               
+              
+               ),
+
+                column(8,
+                       # checkboxGroupButtons(
+                       #   inputId = "varChoice",
+                       #   label = "Filter by Category:",
+                       #   choices = c("Precipitation", "Snow", "Streamflow", "Water Quality", "Temperature"),
+                       #   checkIcon = list(
+                       #     yes = icon("check-square"),
+                       #     no = icon("square-o")
+                       #   )),
+                      
+                       # checkboxGroupButtons(
+                       #   inputId = "varChoice", label = "",
+                       #   choices = c("Precipitation", "Snow", "Streamflow", "Water Quality"),
+                       #   justified = TRUE, status = c("danger"), individual = TRUE,
+                       #   checkIcon = list(yes = icon("ok", lib = "glyphicon"), no = icon("remove", lib = "glyphicon"))
+                       # ),
+                       fluidRow(
+                        sliderInput(
+                          "range",
+                          "",
+                          value = c(as.Date("2020-01-01"), as.Date("2021-10-01")),
+                          min = as.Date("2015-10-01"),
+                          max = as.Date("2021-10-01"),
+                          timezone = "-0600",
+                          width = '100%'
+                          
+                        ),
+                        p(strong("Precipitation")),
+                        
+                        plotlyOutput("precip", width = "100%", height = 120),
+                       
+                        selectInput(
+                          "weatherVar",
+                          "NOAA Weather Stations",
+                          choices = c(
+                            "Precipitation",
+                            "Snowfall",
+                            "Snow Depth" = "Snow_depth",
+                            "Minimum Temperature" = "Minimum_temp",
+                            "Maximum Temperature" = "Maximum_temp",
+                            "Average Temperature" = "Average_temp"
+                          ),
+                          selected = "Snowfall"
+                        ),
+                       #tags$style(type = "text/css", "#weatherVar {color: orange}"),
+                        plotlyOutput("noaa", width = "100%", height = 150),
+                        selectInput(
+                          "streamVar",
+                          "Streamflow",
+                          choices = c("Discharge" = "discharge_Ls",
+                                      "Stage" = "stage_cm")
+                        ),
+                        
+                        plotlyOutput("q", width = "100%", height = 150),
+                        selectInput(
+                          "qual",
+                          "Water Quality",
+                          choices = c(
+                            "Turbidity" = "Turbidity",
+                            "pH" = "pH",
+                            "DO" = "DO",
+                            "Conductivity" = "Conductivity"
+                          )
+                        ),
+                        plotlyOutput("waterQual", width = "100%", height = 150),
+                        # h4(
+                        #   "NOAA Weather Viewer"
+                        # ),
+                        
+                        
+                        strong("Note: some data may be missing for certain dates/variables")
+                        #plotlyOutput("plot1", width = "100%")
+                        
+                      )
+                )
              ))),
-  
   
   tabPanel(
     "Interactive Map",
@@ -137,9 +201,9 @@ ui <- navbarPage(
         "map2", width = '100%' , height = 800
       )),
       sidebarPanel(
-        strong(
-          "This map will also include a Sentinel Imagery explorer and the ability to turn on/off datasets to view study site/sensor locations"
-        ),
+        # strong(
+        #   "This map will also include a Sentinel Imagery explorer and the ability to turn on/off datasets to view study site/sensor locations"
+        # ),
         
         #setSliderColor(color = c("LightGray", "LightGray"), sliderId = c(2,3)),
         
@@ -155,6 +219,8 @@ ui <- navbarPage(
         #   width = 500,
         #   height = "auto",
         #   style = "opacity: 0.9; background-color: white; padding: 0 20px 20px 20px",
+        switchInput(inputId = "radarButton", label = "Radar", value = FALSE, inline = TRUE,
+                    onStatus = "success", offStatus = "danger"),
         sliderInput(
           "date",
           label = "Observation Date:",
@@ -166,9 +232,10 @@ ui <- navbarPage(
           width = '100%'
           
         ),
+        
         sliderInput(
           "time",
-          "Radar Time (MST):",
+          "Time (MST):",
           value = strptime("12:00", "%H:%M"),
           min = strptime("00:00", "%H:%M"),
           max = strptime("23:50", "%H:%M"),
@@ -190,7 +257,10 @@ ui <- navbarPage(
             "Average Temperature" = "Average_temp"
           )
         ),
-        em("Circle size represents variable value")
+        em("Circle size represents variable value"),
+        hr(),
+        br(),
+        p("Link to Sentinel Explorer", a(href="", "here"), em("(not active yet)"))
       )
       
     )
@@ -218,6 +288,20 @@ server <-  function(input, output, session){
     paste(c(dateToTimeList(input$time)$hour, dateToTimeList(input$time)$min, 
             dateToTimeList(input$time)$sec), collapse = ':')
   })
+  
+  
+  Precipitation <- c("Precipitation", "precip_mm")
+  Snow <- c("Snow", "Snowfall", "Snow_depth")
+  Streamflow <- c("Streamflow", "stage_cm", "discharge_Ls")
+  WaterQuality <- c("Water Quality", "Turbidity", "pH", "DO", "Conductivity")
+  Temperature <- c("Temperature", "Minimum_temp", "Maximum_temp", "Average_temp")
+  
+  weather_data_filtered <- reactive({
+    
+    
+  })
+    
+  
 
   pal <- colorFactor(palette = "Spectral", water_data$source)
   
@@ -311,9 +395,52 @@ server <-  function(input, output, session){
       ) %>%
       hideGroup(c("Cameron Peak Fire"))
     
-    
-    
   })
+  
+  output$table <- DT::renderDataTable(sites, rownames = FALSE,
+                                      options = list(autoWidth = TRUE, scrollX = TRUE,
+                                      scrollY = "200px", scrollCollapse = TRUE,
+                                      paging = FALSE, float = "left"),
+                                      width = "80%", height = "70%")
+  
+  
+  tableProxy <- DT::dataTableProxy("table")
+    
+  #   output$table <- DT::renderDataTable({
+  #     DT::datatable(
+  #     round(data.frame(replicate(50, runif(1000, 0, 10))), 2),
+  #     rownames = TRUE,
+  #     extensions = 'Buttons',
+  #     options = list(
+  #       autoWidth = FALSE, scrollX = TRUE,
+  #       columnDefs = list(list(
+  #         width = "125px", targets = "_all"
+  #       )),
+  #       dom = 'tpB',
+  #       lengthMenu = list(c(5, 15,-1), c('5', '15', 'All')),
+  #       pageLength = 15,
+  #       buttons = list(
+  #         list(
+  #           extend = "collection",
+  #           text = 'Show More',
+  #           action = DT::JS(
+  #             "function ( e, dt, node, config ) {
+  #                             dt.page.len(50);
+  #                             dt.ajax.reload();}"
+  #           )
+  #         ),
+  #         list(
+  #           extend = "collection",
+  #           text = 'Show Less',
+  #           action = DT::JS(
+  #             "function ( e, dt, node, config ) {
+  #                             dt.page.len(10);
+  #                             dt.ajax.reload();}"
+  #           ))
+  #       )))
+  #   
+  #   
+  # })
   
 
   observe({
@@ -352,7 +479,9 @@ server <-  function(input, output, session){
                 stroke = TRUE,
                 fillOpacity = 1,
                 popup = paste("Station:", weather2()$Site, "<br>",
-                              input$variable, weather2()$variable
+                              paste0(input$variable, ":"), weather2()$variable,
+                              if(input$variable %in% c("Precipitation", "Snowfall",
+                                                       "Snow_depth")) {"mm"} else {"degrees Celcius"}
                 ),
                 group = "Weather Stations",
                 options = pathOptions(pane = "weather")
@@ -387,6 +516,15 @@ server <-  function(input, output, session){
     
     #df(df() %>% filter(!key %in% filtered_df()$key))
     
+  })
+  
+  observeEvent(input$table_rows_selected, {
+    
+    tableSelected <- sites[input$table_rows_selected,]
+    
+    combined(bind_rows(combined(),
+                       filtered_df() %>% 
+                         filter(Site %in% tableSelected$Site)))
   })
   
   final_df <- reactive({
@@ -446,6 +584,7 @@ server <-  function(input, output, session){
       add_lines(x = final_df()$Date,
                 y = final_df()$quality,
                 name = ~final_df()$Site,
+                mode = 'lines+markers',
                 linetype = ~ final_df()$Site) %>%
       plotly::layout(yaxis = list(title = input$qual),
                      xaxis = list(range = c(input$range[1], input$range[2]),
@@ -493,6 +632,9 @@ server <-  function(input, output, session){
   
   observeEvent(input$clear, {
     combined(data.frame())
+    
+    tableProxy %>% DT::selectRows(NULL)
+    
   })
   
   
@@ -534,14 +676,22 @@ server <-  function(input, output, session){
           options = pathOptions(pane = "fire")
         ) %>%
         addScaleBar(position = "bottomright") %>%
+        addLegend(pal = colorNumeric(palette = c("#646464", "#04e9e7", "#019ff4", "#0300f4",
+                                                 "#02fd02", "#01c501", "#008e00", "#fdf802",
+                                                 "#e5bc00", "#fd9500", "#fd0000", "#d40000",
+                                                 "#bc0000", "#f800fd", "#9854c6", "#fdfdfd"),
+                                     domain = c(0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75)),
+                  values = c(0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75),
+                  title = "Radar Base Reflectivity (dBZ)",
+                  position = "bottomright", group = "Radar") %>% 
 
         addLayersControl(
           baseGroups = c("USGS Topo", "Open Street Map", "Satellite"),
-          overlayGroups = c("Cameron Peak Fire", "Weather Stations"),
+          overlayGroups = c("Cameron Peak Fire", "Weather Stations", "Radar"),
           position = "topright",
           options = layersControlOptions(collapsed = FALSE)
         ) %>%
-        hideGroup( "Cameron Peak Fire")
+        hideGroup(c("Cameron Peak Fire", "Radar"))
 
 
 
@@ -569,34 +719,32 @@ server <-  function(input, output, session){
     #     )
     # })
     # 
-    observe({
-
+  
+  observe({
+    
+    if(input$radarButton == TRUE)
       leafletProxy("map2") %>%
-        removeTiles(layerId = "B") %>% 
-        addWMSTiles(
-          layerId = "B",
-          "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi?",
-          layers = "nexrad-n0q-wmst",
-          options = WMSTileOptions(
-            format = "image/png",
-            transparent = TRUE,
-            time = as.POSIXct(paste(input$date, time()),
-                              format = "%Y-%m-%d %H:%M", tz = "UTC"),
-            group = "Radar"
-          )
-        ) %>% 
-        addLegend(pal = colorNumeric(palette = c("#646464", "#04e9e7", "#019ff4", "#0300f4",
-                                                 "#02fd02", "#01c501", "#008e00", "#fdf802",
-                                                 "#e5bc00", "#fd9500", "#fd0000", "#d40000",
-                                                 "#bc0000", "#f800fd", "#9854c6", "#fdfdfd"),
-                                     domain = c(0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75)),
-                  values = c(0,5,10,15,20,25,30,35,40,45,50,55,60,65,70,75),
-                  title = "Radar Base Reflectivity (dBZ)",
-                  position = "bottomright")
-
-
-
-    })
+      showGroup("Radar") %>% 
+      removeTiles(layerId = "B") %>% 
+      addWMSTiles(
+        layerId = "B",
+        "https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi?",
+        layers = "nexrad-n0q-wmst",
+        options = WMSTileOptions(
+          format = "image/png",
+          transparent = TRUE,
+          time = as.POSIXct(paste(input$date, time()),
+                            format = "%Y-%m-%d %H:%M", tz = "UTC"),
+          group = "Radar"
+        )
+      )
+    
+    if(input$radarButton == FALSE)
+      leafletProxy("map2") %>% 
+      clearControls() %>% 
+      removeTiles(layerId = "B")
+  })
+  
 
 
 }
