@@ -8,6 +8,7 @@ library(plotly)
 library(readr)
 library(sf)
 library(shinyWidgets)
+library(stringr)
 
 camPeak_simple <- readRDS("data/camPeakSimple.RDS")
 
@@ -16,8 +17,21 @@ weather_data <- readRDS("data/weather_update.RDS") %>%
   mutate(source = "NOAA")
 
 water_data <- readRDS("data/water_data.RDS") %>% arrange(Date) %>% 
-  mutate(source_spec = if_else(source == "CSU_Kampf", "CSU-Stephanie Kampf", source)) %>% 
-  mutate(source = if_else(source == "CSU_Kampf", "CSU", source))
+  mutate(source_spec = if_else(source == "CSU_Kampf", "CSU-Stephanie Kampf", source)) %>%
+  mutate(source = if_else(source == "CSU_Kampf", "CSU", source)) %>% 
+  mutate(p = if_else(!(is.na(precip_mm)), "Precipitation", "")) %>% 
+  mutate(s = if_else(!(is.na(stage_cm)), "Streamflow", "")) %>% 
+  mutate(d = if_else(!(is.na(discharge_Ls)), "Streamflow", "")) %>% 
+  mutate(t = if_else(!(is.na(Turbidity)), "Water Quality", "")) %>% 
+  mutate(p2 = if_else(!(is.na(pH)), "Water Quality", "")) %>% 
+  mutate(d2 = if_else(!(is.na(DO)), "Water Quality", "")) %>% 
+  mutate(c = if_else(!(is.na(Conductivity)), "Water Quality", "")) %>% 
+  mutate(category = paste(p,s,d,t,p2,d2,c))
+  
+  
+  
+  
+  
 
 sites <- water_data %>% distinct(Site, .keep_all = TRUE) %>% dplyr::select(Site, source, long, lat)
 
@@ -45,13 +59,26 @@ ui <- navbarPage(
     success = "#f28e35",
     base_font = font_google("Cairo")
   ) %>% 
-    bslib::bs_add_rules("label {
+    bslib::bs_add_rules(" label.control-label {
         font-size: 15px;
         font-weight: bold;
-      }"),
+      }
+      i.glyphicon.glyphicon-play {
+      color: #e1210d; line-height: 2}
+      i.glyphicon.glyphicon-pause {
+      color: #e1210d; line-height: 2}
+      a#bs-select-1-0.dropdown-item {
+      color: #d92809}
+      a#bs-select-1-1.dropdown-item {
+      color: #f5a04c}
+      a#bs-select-1-2.dropdown-item {
+      color: #88db7d}
+      a#bs-select-1-3.dropdown-item {
+      color: #1c73a6}
+      "),
 
   
-  "Portal Demo",
+  "Poudre Portal Demo",
   id = "nav",
   
   tabPanel("Data Explorer",
@@ -94,13 +121,15 @@ ui <- navbarPage(
                actionButton("clear", "Clear Plots"),
                br(),
                br(),
-               multiInput("sourceChoice", "Filter by Source:",
+               pickerInput("sourceChoice", "Filter by Source:",
                           choices = c("CSU", "FoCo", "USFS", "USGS"),
-                          selected = c("CSU", "FoCo", "USFS", "USGS")),
+                          selected = c("CSU", "FoCo", "USFS", "USGS"),
+                          multiple = TRUE),
                checkboxGroupButtons(
                  inputId = "varChoice",
                  label = "Filter by Category:",
                  choices = c("Precipitation", "Snow", "Streamflow", "Water Quality", "Temperature"),
+                 selected = c("Precipitation", "Snow", "Streamflow", "Water Quality", "Temperature"),
                  direction = "horizontal",
                  individual = TRUE,
                  status = "primary",
@@ -242,7 +271,7 @@ ui <- navbarPage(
           timeFormat = "%H:%M",
           timezone = "-0600",
           width = '100%',
-          step = 900,
+          step = 900, 
           animate = animationOptions(interval = 3000, loop = TRUE)
         ),
         selectInput(
@@ -290,16 +319,26 @@ server <-  function(input, output, session){
   })
   
   
+  water_data_filtered <- reactive({
+    
+    if(is.null(input$varChoice))
+      return(water_data %>% filter(is.na(category)))
+    
+    water_data %>% filter(source %in% input$sourceChoice) %>% 
+      filter(str_detect(category, input$varChoice))
+  })
+  
+  
   Precipitation <- c("Precipitation", "precip_mm")
   Snow <- c("Snow", "Snowfall", "Snow_depth")
   Streamflow <- c("Streamflow", "stage_cm", "discharge_Ls")
   WaterQuality <- c("Water Quality", "Turbidity", "pH", "DO", "Conductivity")
   Temperature <- c("Temperature", "Minimum_temp", "Maximum_temp", "Average_temp")
   
-  weather_data_filtered <- reactive({
-    
-    
-  })
+  # weather_data_filtered <- reactive({
+  #   
+  #   
+  # })
     
   
 
@@ -338,27 +377,27 @@ server <-  function(input, output, session){
         group = "Cameron Peak Fire",
         options = pathOptions(pane = "fire")
       ) %>%
-      addCircleMarkers(
-        data = water_data,
-        layerId = ~ Site,
-        lng = ~ long,
-        lat = ~ lat,
-        radius = 6,
-        color = "black",
-        fillColor = ~ pal(source),
-        stroke = TRUE,
-        weight = 1,
-        fillOpacity = 1,
-        popup = paste(
-          "Source:",
-          water_data$source_spec,
-          "<br>",
-          "Site:",
-          water_data$Site
-        ),
-
-        options = pathOptions(pane = "water")
-      ) %>%
+      # addCircleMarkers(
+      #   data = water_data,
+      #   layerId = ~ Site,
+      #   lng = ~ long,
+      #   lat = ~ lat,
+      #   radius = 6,
+      #   color = "black",
+      #   fillColor = ~ pal(source),
+      #   stroke = TRUE,
+      #   weight = 1,
+      #   fillOpacity = 1,
+      #   popup = paste(
+      #     "Source:",
+      #     water_data$source_spec,
+      #     "<br>",
+      #     "Site:",
+      #     water_data$Site
+      #   ),
+      # 
+      #   options = pathOptions(pane = "water")
+      # ) %>%
       # addCircleMarkers(
       #   data = weather1(),
       #   layerId = ~Site,
@@ -387,7 +426,7 @@ server <-  function(input, output, session){
       addLayersControl(
         baseGroups = c("USGS Topo", "Open Street Map", "Satellite"),
         overlayGroups = c(
-          "Weather Stations"
+          "Weather Stations", "Cameron Peak Fire"
           
         ),
         position = "topleft",
@@ -396,6 +435,35 @@ server <-  function(input, output, session){
       hideGroup(c("Cameron Peak Fire"))
     
   })
+  
+  # observe({
+  #   
+  #   leafletProxy("map1") %>% 
+  #     
+  #     addCircleMarkers(
+  #       data = water_data_filtered(),
+  #       layerId = ~ Site,
+  #       lng = ~ long,
+  #       lat = ~ lat,
+  #       radius = 6,
+  #       color = "black",
+  #       fillColor = ~ pal(source),
+  #       stroke = TRUE,
+  #       weight = 1,
+  #       fillOpacity = 1,
+  #       popup = paste(
+  #         "Source:",
+  #         water_data_filtered()$source_spec,
+  #         "<br>",
+  #         "Site:",
+  #         water_data_filtered()$Site
+  #       ),
+  #       
+  #       options = pathOptions(pane = "water")
+  #     )
+  #     
+  #     
+  # })
   
   output$table <- DT::renderDataTable(sites, rownames = FALSE,
                                       options = list(autoWidth = TRUE, scrollX = TRUE,
@@ -448,7 +516,8 @@ server <-  function(input, output, session){
     input$nav
 
     tab1 <- leafletProxy("map1") %>%
-      removeMarker("Weather Stations") %>%
+      #removeMarker("Weather Stations") %>%
+      clearMarkers() %>% 
     addCircleMarkers(
       data = weather1(),
       layerId = ~Site,
@@ -463,9 +532,30 @@ server <-  function(input, output, session){
         popup = paste("Station:", weather1()$Site
         ),
         group = "Weather Stations",
-        options = pathOptions(pane = "weather")) #%>%
+        options = pathOptions(pane = "weather")) %>%
       #addLegend("topright", data = weather1(), colors = "black", group = "Weather Stations", labels = "NOAA Weather Stations")
-      
+      addCircleMarkers(
+              data = water_data_filtered(),
+              layerId = ~ Site,
+              lng = ~ long,
+              lat = ~ lat,
+              radius = 6,
+              color = "black",
+              fillColor = ~ pal(source),
+              stroke = TRUE,
+              weight = 1,
+              fillOpacity = 1,
+              popup = paste(
+                "Source:",
+                water_data_filtered()$source_spec,
+                "<br>",
+                "Site:",
+                water_data_filtered()$Site
+              ),
+              group = "water",
+
+              options = pathOptions(pane = "water")
+            )
 
       tab2 <- leafletProxy("map2") %>%
         clearMarkers() %>%
@@ -475,9 +565,11 @@ server <-  function(input, output, session){
                 lng = ~ long,
                 lat = ~ lat,
                 radius = ~ sqrt(variable),
-                color = "red",
+                color = "black",
+                weight = 4,
                 stroke = TRUE,
                 fillOpacity = 1,
+                fillColor = "black",
                 popup = paste("Station:", weather2()$Site, "<br>",
                               paste0(input$variable, ":"), weather2()$variable,
                               if(input$variable %in% c("Precipitation", "Snowfall",
@@ -689,7 +781,7 @@ server <-  function(input, output, session){
           baseGroups = c("USGS Topo", "Open Street Map", "Satellite"),
           overlayGroups = c("Cameron Peak Fire", "Weather Stations", "Radar"),
           position = "topright",
-          options = layersControlOptions(collapsed = FALSE)
+          options = layersControlOptions(collapsed = TRUE)
         ) %>%
         hideGroup(c("Cameron Peak Fire", "Radar"))
 
